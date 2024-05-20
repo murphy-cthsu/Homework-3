@@ -67,23 +67,6 @@ class MyPortfolio:
     def calculate_weights(self):
         # Get the assets by excluding the specified column
         assets = self.price.columns[self.price.columns != self.exclude]
-        # allocations = {
-        #     "XLV": 36/ 100,#49
-        #     "XLK": 60/ 100, #67
-        #     #"XLU":100/ 100, #29
-        #     "XLB": 10/100, #45
-        #     #"XLC": 10/100, #45
-        #     # #"XLE": 100/100, 37
-        #     # #"XLF": 100/100, 40
-        #     # #"XLI": 70/100, 
-        #     # #"XLP": 30/100, 
-        #     # #"XLRE": 100/100, 30
-        #     # "XLY":5/100,
-            
-        # }
-        
-        # for ticker, allocation in allocations.items():
-        #     self.portfolio_weights[ticker] = allocation
         self.portfolio_weights = pd.DataFrame(index=self.price.index, columns=self.price.columns)
         mean_returns = self.returns[assets].mean()
         cov_matrix = self.returns[assets].cov()
@@ -210,9 +193,6 @@ class AssignmentJudge:
             print("Problem 4.2 Success - Get 10 points")
             return 10
         else:
-            print(Bdf)
-            print("Mp sharp ratio", self.report_metrics(Bdf, self.mp)[1])
-            print("SPY sharp ratio", self.report_metrics(Bdf, self.mp)[0])
             print("Problem 4.2 Fail")
         return 0
 
