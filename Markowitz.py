@@ -66,7 +66,8 @@ class EqualWeightPortfolio:
         """
         TODO: Complete Task 1 Below
         """
-
+        num_assets = len(assets)
+        self.portfolio_weights[assets] = 1.0 / num_assets
         """
         TODO: Complete Task 1 Above
         """
@@ -117,13 +118,22 @@ class RiskParityPortfolio:
         """
         TODO: Complete Task 2 Below
         """
-
+        for i in range(self.lookback+1, len(df)):
+            R_n = df_returns.copy()[assets].iloc[i - self.lookback : i]
+            asset_volatility = R_n.std()
+            #print(asset_volatility)
+            weights = 1 / asset_volatility
+            weights /= weights.sum()  # Normalize to sum to 1
+            self.portfolio_weights.loc[df.index[i], assets] = weights
+            
+        #print(self.portfolio_weights[assets])
         """
         TODO: Complete Task 2 Above
         """
 
         self.portfolio_weights.ffill(inplace=True)
         self.portfolio_weights.fillna(0, inplace=True)
+        #print(self.portfolio_weights[assets][self.lookback:len(df)])
 
     def calculate_portfolio_returns(self):
         # Ensure weights are calculated
@@ -194,7 +204,10 @@ class MeanVariancePortfolio:
                 # NOTE: You can modify the following code
                 w = model.addMVar(n, name="w", ub=1)
                 model.setObjective(w.sum(), gp.GRB.MAXIMIZE)
-
+                obj=gp.quicksum(mu[i] * w[i] for i in range(n)) - gamma * 0.5 * gp.quicksum(Sigma[i,j] * w[i] * w[j] for i in range(n) for j in range(n))
+                model.setObjective(obj,gp.GRB.MAXIMIZE)
+                model.addConstr(w.sum() == 1)
+                model.addConstr(w >= 0)
                 """
                 TODO: Complete Task 3 Below
                 """
@@ -402,9 +415,11 @@ class AssignmentJudge:
     def check_answer_rp(self, rp_dataframe):
         answer_dataframe = pd.read_pickle(self.rp_path)
         if self.compare_dataframe(answer_dataframe, rp_dataframe):
+            
             print("Problem 2 Complete - Get 10 Points")
             return 10
         else:
+            #print(answer_dataframe[50:len(df)])
             print("Problem 2 Fail")
         return 0
 

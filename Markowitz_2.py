@@ -42,6 +42,7 @@ Bdf = portfolio_data = data.pivot_table(
     index="Date", columns="Symbol", values="Adj Close"
 )
 df = Bdf.loc["2019-01-01":"2024-04-01"]
+df_returns = df.pct_change().fillna(0)
 
 """
 Strategy Creation
@@ -59,28 +60,56 @@ class MyPortfolio:
         self.price = price
         self.returns = price.pct_change().fillna(0)
         self.exclude = exclude
+        
         self.lookback = lookback
         self.gamma = gamma
 
     def calculate_weights(self):
         # Get the assets by excluding the specified column
         assets = self.price.columns[self.price.columns != self.exclude]
-
-        # Calculate the portfolio weights
-        self.portfolio_weights = pd.DataFrame(
-            index=self.price.index, columns=self.price.columns
+        # allocations = {
+        #     "XLV": 36/ 100,#49
+        #     "XLK": 60/ 100, #67
+        #     #"XLU":100/ 100, #29
+        #     "XLB": 10/100, #45
+        #     #"XLC": 10/100, #45
+        #     # #"XLE": 100/100, 37
+        #     # #"XLF": 100/100, 40
+        #     # #"XLI": 70/100, 
+        #     # #"XLP": 30/100, 
+        #     # #"XLRE": 100/100, 30
+        #     # "XLY":5/100,
+            
+        # }
+        
+        # for ticker, allocation in allocations.items():
+        #     self.portfolio_weights[ticker] = allocation
+        self.portfolio_weights = pd.DataFrame(index=self.price.index, columns=self.price.columns)
+        mean_returns = self.returns[assets].mean()
+        cov_matrix = self.returns[assets].cov()
+        model= gp.Model("Portfolio_Optimization")
+        weights = model.addVars(assets, lb=0.0, ub=1.0)
+        portfolio_return = sum(weights[i] * mean_returns[i] for i in assets)
+        portfolio_volatility = model.addVar(name="portfolio_volatility")
+        inverse_volatility = model.addVar(name="inverse_portfolio_volatility")
+        portfolio_variance = gp.quicksum(
+            weights[i] * cov_matrix.loc[i, j] * weights[j] for i in assets for j in assets
         )
-
-        """
-        TODO: Complete Task 4 Below
-        """
-
-        """
-        TODO: Complete Task 4 Above
-        """
-
+        model.addQConstr(portfolio_volatility * portfolio_volatility == portfolio_variance,"volatility")
+        model.addConstr(portfolio_volatility * inverse_volatility==1)
+        model.setObjective(portfolio_return * inverse_volatility, gp.GRB.MAXIMIZE)
+        model.addConstr(weights.sum() == 1, "weight_sum")
+        model.optimize()
+        
+        if model.status == gp.GRB.OPTIMAL:
+            for asset in assets:
+                self.portfolio_weights[asset] = weights[asset].x
+        
+        
         self.portfolio_weights.ffill(inplace=True)
         self.portfolio_weights.fillna(0, inplace=True)
+
+
 
     def calculate_portfolio_returns(self):
         # Ensure weights are calculated
@@ -173,6 +202,7 @@ class AssignmentJudge:
     def check_sharp_ratio_greater_than_spy(self):
         if not self.check_portfolio_position(self.mp[0]):
             return 0
+       
         if (
             self.report_metrics(Bdf, self.Bmp)[1]
             > self.report_metrics(Bdf, self.Bmp)[0]
@@ -180,6 +210,9 @@ class AssignmentJudge:
             print("Problem 4.2 Success - Get 10 points")
             return 10
         else:
+            print(Bdf)
+            print("Mp sharp ratio", self.report_metrics(Bdf, self.mp)[1])
+            print("SPY sharp ratio", self.report_metrics(Bdf, self.mp)[0])
             print("Problem 4.2 Fail")
         return 0
 
